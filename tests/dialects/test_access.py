@@ -87,7 +87,7 @@ class TestAccess(Validator):
             "SELECT MOD([ID], 10) FROM [Users]",
             write={
                 "": 'SELECT "ID" % 10 FROM "Users"',
-                "tsql": 'SELECT [ID] % 10 FROM [Users]',
+                "tsql": "SELECT [ID] % 10 FROM [Users]",
             },
         )
 
@@ -113,7 +113,7 @@ class TestAccess(Validator):
     def test_date_part_function(self):
         time_unit_mappings = {
             "yyyy": "year",
-            "q": "quarter", 
+            "q": "quarter",
             "m": "month",
             "y": "dayofyear",
             "d": "day",
@@ -123,7 +123,7 @@ class TestAccess(Validator):
             "n": "minute",
             "s": "second",
         }
-        
+
         for access_unit, standard_unit in time_unit_mappings.items():
             with self.subTest(access_unit=access_unit):
                 self.validate_all(
@@ -191,8 +191,5 @@ class TestAccess(Validator):
     def test_date_function(self):
         self.validate_all(
             "SELECT Date() AS now",
-            write={
-                "": 'SELECT CURRENT_TIMESTAMP() AS now',
-                "redshift": 'SELECT GETDATE() AS now'
-            }
+            write={"": "SELECT CURRENT_TIMESTAMP() AS now", "redshift": "SELECT GETDATE() AS now"},
         )

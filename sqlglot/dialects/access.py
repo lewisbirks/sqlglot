@@ -20,10 +20,15 @@ def _convert_like_wildcards(expression):
 
 class Access(Dialect):
     AMPERSAND_IS_STRING_CONCAT = True
+
     class Tokenizer(Tokenizer):
         IDENTIFIERS = [("[", "]")]  # Access uses square brackets for identifiers
-        QUOTES = ["'", '"', ("#", "#")]  # Access supports both single and double quotes, and # for dates
-        
+        QUOTES = [
+            "'",
+            '"',
+            ("#", "#"),
+        ]  # Access supports both single and double quotes, and # for dates
+
         KEYWORDS = {
             **Tokenizer.KEYWORDS,
             "YESNO": TokenType.BOOLEAN,
@@ -131,13 +136,13 @@ class Access(Dialect):
             part = self._parse_bitwise()
             self._match(TokenType.COMMA)
             value = self._parse_bitwise()
-            
+
             if part and isinstance(part, exp.Literal):
                 # Map Access time units to standard units
                 unit = part.this.lower() if isinstance(part.this, str) else str(part.this)
                 mapped_unit = self._ACCESS_TIME_UNITS.get(unit, unit)
                 part = exp.var(mapped_unit)
-            
+
             return self.expression(exp.Extract, this=part, expression=value)
 
         def _parse_date_diff(self) -> exp.Expression:
