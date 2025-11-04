@@ -110,7 +110,7 @@ class TestAccess(Validator):
             },
         )
 
-    def test_date_functions(self):
+    def test_date_part_function(self):
         time_unit_mappings = {
             "yyyy": "year",
             "q": "quarter", 
@@ -134,11 +134,65 @@ class TestAccess(Validator):
                     },
                 )
 
-    def test_dateadd_function(self):
+    def test_date_add_function(self):
         self.validate_all(
             "SELECT DateAdd('d', 30, [OrderDate]) FROM [Orders]",
             write={
                 "": 'SELECT TS_OR_DS_ADD("OrderDate", 30, DAY) FROM "Orders"',
                 "redshift": 'SELECT DATEADD(DAY, 30, "OrderDate") FROM "Orders"',
             },
+        )
+
+    def test_ampersand_concatenation(self):
+        self.validate_all(
+            "SELECT [Name] & ' - ' & [ID] FROM [Users]",
+            write={
+                "": 'SELECT "Name" || \' - \' || "ID" FROM "Users"',
+                "redshift": 'SELECT "Name" || \' - \' || "ID" FROM "Users"',
+            },
+        )
+
+    def test_exclamation_syntax(self):
+        self.validate_all(
+            "SELECT STAT_ORDANAEL_1!MC FROM [Orders]",
+            write={
+                "": 'SELECT STAT_ORDANAEL_1.MC FROM "Orders"',
+                "redshift": 'SELECT STAT_ORDANAEL_1.MC FROM "Orders"',
+            },
+        )
+
+    def test_isnull_function(self):
+        self.validate_all(
+            "SELECT IsNull([Name]) FROM [Users]",
+            write={
+                "": 'SELECT "Name" IS NULL FROM "Users"',
+                "redshift": 'SELECT "Name" IS NULL FROM "Users"',
+            },
+        )
+
+    def test_int_function(self):
+        self.validate_all(
+            "SELECT Int([Price] / 3.5) FROM [Products]",
+            write={
+                "": 'SELECT CAST("Price" / 3.5 AS INT) FROM "Products"',
+                "redshift": 'SELECT CAST(CAST("Price" AS DOUBLE PRECISION) / 3.5 AS INTEGER) FROM "Products"',
+            },
+        )
+
+    def test_date_diff_function(self):
+        self.validate_all(
+            'SELECT DateDiff("d", [StartDate], [EndDate]) FROM [Orders]',
+            write={
+                "": 'SELECT DATEDIFF("EndDate", "StartDate", DAY) FROM "Orders"',
+                "redshift": 'SELECT DATEDIFF(DAY, "StartDate", "EndDate") FROM "Orders"',
+            },
+        )
+
+    def test_date_function(self):
+        self.validate_all(
+            "SELECT Date() AS now",
+            write={
+                "": 'SELECT CURRENT_TIMESTAMP() AS now',
+                "redshift": 'SELECT GETDATE() AS now'
+            }
         )

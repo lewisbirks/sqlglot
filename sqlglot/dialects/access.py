@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import typing as t
 from sqlglot import exp
 from sqlglot.dialects.dialect import Dialect
 from sqlglot.generator import Generator
@@ -18,6 +19,7 @@ def _convert_like_wildcards(expression):
 
 
 class Access(Dialect):
+    AMPERSAND_IS_STRING_CONCAT = True
     class Tokenizer(Tokenizer):
         IDENTIFIERS = [("[", "]")]  # Access uses square brackets for identifiers
         QUOTES = ["'", '"', ("#", "#")]  # Access supports both single and double quotes, and # for dates
@@ -28,6 +30,11 @@ class Access(Dialect):
             "CURRENCY": TokenType.DECIMAL,
             "MEMO": TokenType.TEXT,
             "AUTOINCREMENT": TokenType.AUTO_INCREMENT,
+        }
+
+        SINGLE_TOKENS = {
+            **Tokenizer.SINGLE_TOKENS,
+            "!": TokenType.DOT,  # Treat ! as . for table.field syntax
         }
 
     class Parser(Parser):
@@ -54,13 +61,42 @@ class Access(Dialect):
                 this=args[0] if args else None,
                 expressions=[args[1]] if len(args) > 1 else [exp.Literal.string("")],
             ),
+            "DATE": lambda args: exp.CurrentTimestamp(),
+            "ISNULL": lambda args: exp.Is(this=args[0], expression=exp.Null()),
+            "INT": lambda args: exp.Cast(this=args[0], to=exp.DataType.build("INT")),
         }
+
+        # Remove AMP from BITWISE operations since we want it for concatenation
+        BITWISE = {k: v for k, v in Parser.BITWISE.items() if k != TokenType.AMP}
+
+        def _parse_bitwise(self) -> t.Optional[exp.Expression]:
+            this = self._parse_term()
+
+            while True:
+                if self._match_set(self.BITWISE):
+                    this = self.expression(
+                        self.BITWISE[self._prev.token_type],
+                        this=this,
+                        expression=self._parse_term(),
+                    )
+                elif self._match(TokenType.AMP):
+                    # Handle & as string concatenation in Access
+                    this = self.expression(
+                        exp.DPipe,
+                        this=this,
+                        expression=self._parse_term(),
+                    )
+                else:
+                    break
+
+            return this
 
         # SQLGlot normalizes function names to uppercase
         FUNCTION_PARSERS = {
             **Parser.FUNCTION_PARSERS,
             "DATEPART": lambda self: self._parse_date_part(),
             "DATEADD": lambda self: self._parse_date_add(),
+            "DATEDIFF": lambda self: self._parse_date_diff(),
         }
 
         _ACCESS_TIME_UNITS = {
@@ -104,9 +140,24 @@ class Access(Dialect):
             
             return self.expression(exp.Extract, this=part, expression=value)
 
+        def _parse_date_diff(self) -> exp.Expression:
+            unit = self._parse_bitwise()
+            self._match(TokenType.COMMA)
+            start_date = self._parse_bitwise()
+            self._match(TokenType.COMMA)
+            end_date = self._parse_bitwise()
+
+            if unit and isinstance(unit, exp.Literal):
+                # Map Access time units to standard units
+                unit_str = unit.this.lower() if isinstance(unit.this, str) else str(unit.this)
+                mapped_unit = self._ACCESS_TIME_UNITS.get(unit_str, unit_str)
+                unit = exp.var(mapped_unit)
+
+            return self.expression(exp.DateDiff, this=end_date, expression=start_date, unit=unit)
+
         RANGE_PARSERS = {
             **Parser.RANGE_PARSERS,
-            TokenType.LIKE: lambda self: self._parse_access_like,
+            TokenType.LIKE: lambda self, this: self._parse_access_like(this),
         }
 
         def _parse_access_like(self, this):
