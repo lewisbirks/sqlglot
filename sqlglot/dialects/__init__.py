@@ -65,6 +65,7 @@ import importlib
 import threading
 
 DIALECTS = [
+    "Access",
     "Athena",
     "BigQuery",
     "ClickHouse",
