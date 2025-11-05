@@ -3,6 +3,7 @@ from __future__ import annotations
 import typing as t
 from sqlglot import exp
 from sqlglot.dialects.dialect import Dialect
+from sqlglot.expressions import DataType
 from sqlglot.generator import Generator
 from sqlglot.parser import Parser
 from sqlglot.tokens import Tokenizer, TokenType
@@ -68,7 +69,7 @@ class Access(Dialect):
             ),
             "DATE": lambda args: exp.CurrentTimestamp(),
             "ISNULL": lambda args: exp.Is(this=args[0], expression=exp.Null()),
-            "INT": lambda args: exp.Cast(this=args[0], to=exp.DataType.build("INT")),
+            "INT": lambda args: exp.Cast(this=args[0], to=exp.DataType.build(DataType.Type.INT)),
         }
 
         # Remove AMP from BITWISE operations since we want it for concatenation
