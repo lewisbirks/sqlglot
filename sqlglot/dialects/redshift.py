@@ -218,6 +218,10 @@ class Redshift(Postgres):
             exp.TsOrDsAdd: date_delta_sql("DATEADD"),
             exp.TsOrDsDiff: date_delta_sql("DATEDIFF"),
             exp.UnixToTime: lambda self, e: self._unix_to_time_sql(e),
+            exp.Year: lambda self, e: self.sql(exp.Extract(this=exp.var("YEAR"), expression=e.this)),
+            exp.Month: lambda self, e: self.sql(exp.Extract(this=exp.var("MONTH"), expression=e.this)),
+            exp.Day: lambda self, e: self.sql(exp.Extract(this=exp.var("DAY"), expression=e.this)),
+            exp.Week: lambda self, e: self.sql(exp.Extract(this=exp.var("WEEK"), expression=e.this)),
         }
 
         # Postgres maps exp.Pivot to no_pivot_sql, but Redshift support pivots
